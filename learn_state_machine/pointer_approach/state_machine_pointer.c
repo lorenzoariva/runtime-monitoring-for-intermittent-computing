@@ -4,7 +4,7 @@
 
 #include "state_machine_pointer.h"
 
-
+/* state machine pointer approach functions */
 void StateMachine_Init(stateMachine_t * stateMachine) {
     printf("Initialising state machine.\r\n");
     stateMachine->currState = ST_IDLE;
@@ -32,7 +32,7 @@ const char * StateMachine_GetStateName(state_t state) {
     return stateFunctionA[state].name;
 }
 
-
+/* states functions */
 /* monitor function to print in output the status of the current state */
 void monitor(int state, int statusNumber, int P){
     if(P==-1){

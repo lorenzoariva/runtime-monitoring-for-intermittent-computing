@@ -11,9 +11,11 @@
 #define FALSE 0
 char status[MAXSTATUS][MAXSTATUSC] = {"GOOD", "ERROR", "STARTING", "ENDED"};
 
+/* GLOBAL */
 int count = 0;
 
 
+/* struct for states and events (pointer approach) */
 typedef enum {
     ST_IDLE,
     ST_START,
@@ -41,7 +43,7 @@ typedef enum {
 
 
 
-//DECLARATION
+/* functions declarations */
 void StateMachine_Init(stateMachine_t * stateMachine);
 void StateMachine_RunIteration(stateMachine_t *stateMachine, event_t event);
 const char * StateMachine_GetStateName(state_t state);
@@ -59,6 +61,7 @@ void loopState();
 void startState();
 
 
+/* structs and maps for transition between states */
 typedef struct {
     const char * name;
     void (*func)(void);
