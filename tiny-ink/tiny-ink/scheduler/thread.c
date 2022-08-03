@@ -1,5 +1,4 @@
 #include "../ink.h"
-#include "../../monitor/monitor.h"
 
 // prepares the stack of the thread for the task execution
 static inline void __prologue(thread_t *thread)
@@ -20,16 +19,12 @@ void __tick(thread_t *thread)
         __prologue(thread);
         // get thread buffer
         buf = thread->buffer.buf[thread->buffer._idx^1];
-        //tell monitor that the thread started
-        start_monitor((task_t)thread->next);
         // Check if it is the entry task. The entry task always
         // consumes an event in the event queue.
         thread->next = (void *)(((task_t)thread->next)(buf));
         thread->state = TASK_FINISHED;
 
     case TASK_FINISHED:
-        //tell monitor that the thread ended
-        end_monitor((task_t)thread->next);
         //switch stack index to commit changes
         thread->buffer._idx = thread->buffer.idx ^ 1;
         thread->state = TASK_COMMIT;

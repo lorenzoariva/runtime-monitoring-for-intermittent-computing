@@ -8,12 +8,13 @@
 #ifndef MONITOR_MONITOR_H_
 #define MONITOR_MONITOR_H_
 
-#define THREAD1 0x0001057E
-#define THREAD2 0x00010528
-#define THREAD3 0x000104DC
 
-int selectThread(void *next);
-void start_monitor(void *next);
-void end_monitor(void *next);
+#define TASK1 0
+#define TASK2 1
+#define TASK3 2
+
+
+void start_monitor(int index);
+void end_monitor(int index);
 
 #endif /* MONITOR_MONITOR_H_ */
