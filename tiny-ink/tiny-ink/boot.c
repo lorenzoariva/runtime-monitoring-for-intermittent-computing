@@ -2,7 +2,8 @@
 #include "ink.h"
 
 // indicates if this is the first boot.
-__nv uint8_t __inited = 0;
+#pragma NOINIT(__inited)
+uint8_t __inited;
 
 //global time in ticks
 extern uint32_t current_ticks;
@@ -29,9 +30,14 @@ int ink_boot(void)
 {
     // always init microcontroller
     __mcu_init();
-
+    //__inited = 0; //used to set manually __inited to 0
+    if(__inited != 1){
+        __inited = 0;
+    }
     // if this is the first boot
     if(!__inited){
+        //call monitor init function
+        init_monitor_fram();
         // init the scheduler state
         __scheduler_boot_init();
         // init the applications
@@ -39,6 +45,7 @@ int ink_boot(void)
         _ink_init();
         // the first and initial boot is finished
         __inited = 1;
+
     }
 
     // will be called at each reboot of the application

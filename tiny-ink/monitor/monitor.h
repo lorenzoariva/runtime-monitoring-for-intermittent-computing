@@ -13,7 +13,7 @@
 #define TASK2 1
 #define TASK3 2
 
-
+void init_monitor_fram();
 void start_monitor(int index);
 void end_monitor(int index);
 

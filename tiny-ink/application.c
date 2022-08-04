@@ -30,6 +30,8 @@ ENTRY_TASK(task1){
 
     m = __GET(a[0]);
 
+
+    __SET(a[0],m + 2);
     __SET(a[4],m + 10);
 
     //tell monitor that task1 ended
@@ -43,7 +45,7 @@ TASK(task2){
     //tell monitor that task2 started
     start_monitor(TASK2);
 
-    uint16_t val = __GET(a[4]);
+    uint8_t val = __GET(a[4]);
 
 
     if(val==10)
