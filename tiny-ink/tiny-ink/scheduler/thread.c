@@ -12,6 +12,7 @@ static inline void __prologue(thread_t *thread)
 void __tick(thread_t *thread)
 {
     void *buf;
+    void *currentTask;
     switch (thread->state)
     {
     case TASK_READY:
@@ -19,6 +20,12 @@ void __tick(thread_t *thread)
         __prologue(thread);
         // get thread buffer
         buf = thread->buffer.buf[thread->buffer._idx^1];
+
+        //Keep a copy of the address of the current task (so it can be used also by end_monitor function).
+        currentTask = thread->next;
+        //Increment the number of time that the current task started.
+        start_monitor(currentTask);
+
         // Check if it is the entry task. The entry task always
         // consumes an event in the event queue.
         thread->next = (void *)(((task_t)thread->next)(buf));
@@ -27,6 +34,10 @@ void __tick(thread_t *thread)
     case TASK_FINISHED:
         //switch stack index to commit changes
         thread->buffer._idx = thread->buffer.idx ^ 1;
+
+        //Increment the number of time that the current task ended.
+        end_monitor(currentTask);
+
         thread->state = TASK_COMMIT;
     case TASK_COMMIT:
         // copy the real index from temporary index

@@ -8,13 +8,17 @@
 #ifndef MONITOR_MONITOR_H_
 #define MONITOR_MONITOR_H_
 
+//Max number of tasks that can be managed by the monitor
+#define MAXTASK 64
+//Error number if the number of tasks created exceed MAXTASK
+#define ERRORTASK -1
 
-#define TASK1 0
-#define TASK2 1
-#define TASK3 2
 
+void shiftArray(int final);
+int checkTask(void *currentTask);
 void init_monitor_fram();
-void start_monitor(int index);
-void end_monitor(int index);
+void start_monitor(void *task);
+void end_monitor(void *task);
+
 
 #endif /* MONITOR_MONITOR_H_ */

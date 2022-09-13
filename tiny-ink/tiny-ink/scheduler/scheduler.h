@@ -12,13 +12,13 @@ void __create_thread(uint8_t priority, void *entry, void *data_org,
                     void *data_temp, uint16_t size);
 
 // restart thread
-inline void __start_thread(thread_t *thread);
+void __start_thread(thread_t *thread);
 
 // stop thread
-inline void __stop_thread(thread_t *thread);
+void __stop_thread(thread_t *thread);
 
 // priority to thread conversion
-inline thread_t *__get_thread(uint8_t priority);
+thread_t *__get_thread(uint8_t priority);
 
 
 #endif /* SCHEDULER_H_ */

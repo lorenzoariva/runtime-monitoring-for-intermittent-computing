@@ -3,7 +3,7 @@
 
 /* defines non-volatile variable */
 #ifdef __GNUC__
-    #define __nv    __attribute__((section(".nv_vars")))
+    #define __nv    __attribute__((section(".persistent")))
 #else
     #define __nv __attribute__((section(".TI.persistent")))
 #endif
