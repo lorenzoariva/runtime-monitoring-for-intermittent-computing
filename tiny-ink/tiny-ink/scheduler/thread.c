@@ -1,4 +1,5 @@
 #include "../ink.h"
+#include "../../monitor/monitor.h"
 
 // prepares the stack of the thread for the task execution
 static inline void __prologue(thread_t *thread)
@@ -21,22 +22,24 @@ void __tick(thread_t *thread)
         // get thread buffer
         buf = thread->buffer.buf[thread->buffer._idx^1];
 
-        //Keep a copy of the address of the current task (so it can be used also by end_monitor function).
-        currentTask = thread->next;
-        //Increment the number of time that the current task started.
-        start_monitor(currentTask);
+        
+        monitor_entry(thread->next, TASKSTARTING);
+        
 
         // Check if it is the entry task. The entry task always
         // consumes an event in the event queue.
-        thread->next = (void *)(((task_t)thread->next)(buf));
+        thread->_next = (void *)(((task_t)thread->next)(buf));
         thread->state = TASK_FINISHED;
 
     case TASK_FINISHED:
+        //save the current task before it's updated because is used by monitor_entry call
+        currentTask = thread->next;
+
+        thread->next = thread->_next;
         //switch stack index to commit changes
         thread->buffer._idx = thread->buffer.idx ^ 1;
 
-        //Increment the number of time that the current task ended.
-        end_monitor(currentTask);
+        monitor_entry(currentTask, TASKENDING);
 
         thread->state = TASK_COMMIT;
     case TASK_COMMIT:

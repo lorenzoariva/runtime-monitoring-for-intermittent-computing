@@ -29,6 +29,7 @@ typedef struct {
     volatile state_t state; // thread state
     void *entry;            // the first task to be executed
     void *next;             // the current task to be executed
+    void *_next;             // the current task to be executed
     buffer_t buffer;        // holds task shared persistent variables
 }thread_t;
 

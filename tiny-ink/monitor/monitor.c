@@ -6,125 +6,253 @@
  */
 
 #include "monitor.h"
-#include "../tiny-ink/ink.h"
+#include <stdio.h>
 
-/* FRAM monitor variables */
-// __trackTask array keeps track dynamically of the tasks it finds out during the execution of the code.
-__nv void *__trackTask[MAXTASK];
+__nv monitor_t monitor_fram;
+monitor_t* monitor = &monitor_fram;
 
-// __startTask and __endTask arrays keep track of the number of starts and ends for each task in __trackTask.
-// Both of them upload themselves when __trackTask is uploaded.
-__nv int __startTask[MAXTASK];
-__nv int __endTask[MAXTASK];
+// VARIABLES
+char* error_string[MAXERROR] = {
+    "[ERROR_PATH] Not following the correct path!",
+    "[ERROR_REP_T] Too many repetitions of the same task!",
+    "[ERROR_REP_M] Too many repetition of the monitor for the same task!"
+};
+
+// STATE MACHINES ---------------------------------------------------------
+
+state_machine_m monitorStateMachine[] = {
+    { MONITOR_STOPPED, NULL, stMonitorStopped },
+    { MONITOR_READY, stMonitorReady, NULL },
+    { MONITOR_STARTED, stMonitorStarted, NULL },
+    { MONITOR_FINISHED, stMonitorFinished, NULL },
+    { MONITOR_ERROR, stMonitorError, NULL }
+};
 
 
-/**
- * Shift all the element in __trackTask, __startTask and __endTask arrays of one position to the right
- * from the last element to the element in "final" position.
- */
-void shiftArray(int final)
-{
-    int i = MAXTASK - 1;
 
-    while (i >= 0 && i >= final)
-    {
-        if (__trackTask[i] != 0)
-        {
-            __trackTask[i + 1] = __trackTask[i];
-            __startTask[i + 1] = __startTask[i];
-            __endTask[i + 1] = __endTask[i];
+state_machine_f functionStateMachine[] = {
+    { CHECK_REP, checkRepetition },
+    { INIT_COUNT, init_count },
+    { COUNT_TASK, incrementCountTask },
+    { UPDATE_LTASK, updateLastTask },
+    { CHECK_PROGRESS, checkCorrectProgression },
+    { COUNT_PROGRESS, incrementIndexProgression },
+    { MONITOR_BACKUP, backupMonitor },
+    { GET_TIME, updateTime }
+};
+// -----------------------------------------------------------------------
+
+void stMonitorError(){
+    fprintf(stdout, "%s\n", error_string[monitor->monitor_error_type]);
+    fflush(stdout);
+    exit(11);
+}
+
+boolean checkMonitorThresholdRep(){
+    return (monitor->monitor_rep < monitor->repeat_threshold);
+}
+//to be called at each boot
+void reboot_monitor(){
+
+    if(monitor->state == MONITOR_ERROR){
+        monitor->control_state = CONTROL_INTERRUPTED;
+        (*monitorStateMachine[monitor->state].func_v)();
+    } else if(monitor->state == MONITOR_STARTED || monitor->state == MONITOR_FINISHED || monitor->state == MONITOR_READY ){
+        monitor->control_state = CONTROL_INTERRUPTED;
+        monitor->monitor_rep = (monitor->monitor_rep)+1;
+        if(!checkMonitorThresholdRep()){
+            monitor->monitor_error_type = ERROR_REP_M;
+            monitor->state = MONITOR_ERROR;
+            (*monitorStateMachine[monitor->state].func_v)();
+        } else {
+            monitor->monitor_is_rep = TRUE;
+            monitor_entry(monitor->task_bck, monitor->progress);
         }
-        i--;
     }
 }
 
-/**
- * Based on the address of currentTask and the addresses present in __trackTask array:
- *  -   if the currentTask address is already present in __trackTask it returns the index of its position in __trackTask.
- *  -   if the address saved in __trackTask in position i is grater than currentTask address, shiftArray function is called. Then currentTask address
- *      is saved in the __trackTask array in position i while __startTask and __endTask are set to 0 in position i (as the address of currentTask is of a newly discovered task).
- *  -   if the currentTask address refers to a new task that is "greater" than all the other already saved in __trackTask, it's saved in the first empty position in __trackTask (the first one with value "0").
- *  -   if the condition of the while cycle is no longer respected ERRORTASK is returned. This means that a new task is found out, but the __trackTask is already full.
- *      In this case the number of tasks present in the code are greater than the limit imposed by the MAXTASK variable definied in "monitor.h".
- */
-int checkTask(void *currentTask)
-{
-    int i = 0;
-    while (i < MAXTASK)
-    {
-        if (currentTask == __trackTask[i])
-        {
-            return i;
-        }
-        else if (currentTask < __trackTask[i])
-        {
-            shiftArray(i);
-            __trackTask[i] = currentTask;
-            __startTask[i] = 0;
-            __endTask[i] = 0;
-            return i;
-        }
-        else if (__trackTask[i] == 0)
-        {
-            __trackTask[i] = currentTask;
-            return i;
-        }
-        else
-        {
-            i++;
-        }
-
+// to be called only at first boot
+void boot_init_monitor(int num_st, int num_tr, void** graph, int repeat_threshold, long int time_threshold){
+    monitor->state = MONITOR_STOPPED;
+    monitor->num_tr = num_tr;
+    monitor->graph = (void**) malloc (num_tr * sizeof(void*));
+    monitor->transactions = (long int*) malloc (num_tr * sizeof(long int));
+    for(int i=0; i<num_tr; i++){
+        *(monitor->transactions + i) = 0;
+        *(monitor->graph + i) = *(graph + i);
     }
-
-    //if any cases there is an error because there are too many tasks
-    return ERRORTASK;
+    monitor->index = 0;
+    monitor->_index = 0;
+    monitor->repeat_threshold = repeat_threshold;
+    monitor->time_threshold = time_threshold;
+    monitor->execution_time = 0;
+    monitor->last_task_s = NULL;
+    monitor->_last_task_s = NULL;
+    monitor->last_task_e = NULL;
+    monitor->_last_task_e = NULL;
+    monitor->task_bck = NULL;
+    monitor->count_rep = 0;
+    monitor->_count_rep = 0;
+    monitor->progress = TASKSTOPPED;
+    monitor->monitor_rep = 0;
+    monitor->monitor_is_rep = FALSE;
+    monitor->function_state = FUNCTION_ENDED;
+    monitor->monitor_error_type = NO_ERROR;
+    monitor->control_state = CONTROL_STOPPED;
 }
 
-/**
- * Initialize the FRAM variables used by the monitor (should be called only on the fist boot).
- */
-void init_monitor_fram()
-{
-    for (int i = 0; i < MAXTASK; i++)
-    {
-        __trackTask[i] = NULL;
-        __startTask[i] = 0;
-        __endTask[i] = 0;
+
+void init_count(){
+    monitor->count_rep = 0;
+    monitor->_count_rep = 0;
+}
+
+boolean checkThresholdRep(){
+    return (monitor->_count_rep < monitor->repeat_threshold);
+}
+
+void incrementCountTask(){
+    monitor->_count_rep = monitor->count_rep + 1;
+    if(!checkThresholdRep()){
+        monitor->monitor_error_type = ERROR_REP_T;
+        monitor->state = MONITOR_ERROR;
+        (*monitorStateMachine[monitor->state].func_v)();
     }
 }
 
-/**
- * Update the count of time that the current task started.
- * If ERRORTASK is returned by checkTask, the number of tasks exceeded the limit imposed by MAXTASK definied in "monitor.h".
- */
-void start_monitor(void *task) //pointer parameter
-{
-    int pos = checkTask(task);
-    if (pos == ERRORTASK)
-    {
-        //[ERROR] The number of tasks exceeded the limit imposed by MAXTASK.
+void incrementIndexProgression(){
+    if(monitor->progress == TASKENDING){
+        monitor->_index = monitor->index + 1;
     }
-    else
-    {
-        __startTask[pos]++;
-    }
-
-
 }
 
-/**
- * Update the count of time that the current task ended.
- * If ERRORTASK is returned by checkTask, the number of tasks exceeded the limit imposed by MAXTASK definied in "monitor.h".
- */
-void end_monitor(void *task)
-{
-    int pos = checkTask(task);
-    if (pos == ERRORTASK)
-    {
-        //[ERROR] The number of tasks exceeded the limit imposed by MAXTASK.
+void checkCorrectProgression(){
+    if(monitor->task_bck == *((monitor->graph)+monitor->index)){
+        monitor->function_state = COUNT_PROGRESS;
+        (*functionStateMachine[monitor->function_state].func)();
+    } else {
+        monitor->monitor_error_type = ERROR_PATH;
+        monitor->state = MONITOR_ERROR;
+        (*monitorStateMachine[monitor->state].func_v)();
     }
-    else
-    {
-        __endTask[pos]++;
+}
+
+void updateLastTask(){
+    if(monitor->progress == TASKSTARTING){
+        monitor->_last_task_s = monitor->task_bck;
+    } else if (monitor->progress == TASKENDING){
+        monitor->_last_task_e = monitor->task_bck;
     }
+    monitor->function_state = CHECK_PROGRESS;
+    (*functionStateMachine[monitor->function_state].func)();
+}
+
+void checkRepetition(){
+    boolean res = FALSE;
+    if(monitor->progress == TASKSTARTING){
+        res = (monitor->last_task_s == monitor->task_bck);
+    } else if (monitor->progress == TASKENDING){
+        res = (monitor->last_task_e == monitor->task_bck);
+    }
+    if(res){
+        if(monitor->state == MONITOR_STARTED){
+            monitor->function_state = COUNT_TASK;
+            (*functionStateMachine[monitor->function_state].func)();
+        }
+    } else {
+        if(monitor->state == MONITOR_READY){
+            monitor->function_state = INIT_COUNT;
+            (*functionStateMachine[monitor->function_state].func)();
+        } else if (monitor->state == MONITOR_STARTED){
+            monitor->function_state = UPDATE_LTASK;
+            (*functionStateMachine[monitor->function_state].func)();
+        }
+    }
+}
+
+// tmp getTime() function
+long int getTime(){
+    return (1000 * (monitor->index +1));
+}
+
+void updateTime(){
+    if(*(monitor->transactions + monitor->index) == 0){
+        if(monitor->index == 0){
+            *(monitor->transactions + monitor->index) = getTime();
+        } else {
+            *(monitor->transactions + monitor->index) = getTime()- *(monitor->transactions + (monitor->index -1));
+        }
+    }
+    if(monitor->_index == monitor->num_tr && monitor->execution_time == 0){
+        monitor->execution_time = getTime();
+    }
+}
+
+void backupMonitor(){
+    if(monitor->progress == TASKSTARTING){
+        monitor->last_task_s = monitor->_last_task_s;
+    } else if (monitor->progress == TASKENDING){
+        monitor->function_state = GET_TIME;
+        (*functionStateMachine[monitor->function_state].func)();
+        monitor->last_task_e = monitor->_last_task_e;
+    }
+    monitor->count_rep = monitor->_count_rep;
+    monitor->index = monitor->_index;
+    if(monitor->execution_time != 0){
+        fprintf(stdout, "[SUCCESS][%ld] End reached!\n", monitor->execution_time);
+    }
+}
+
+void stMonitorFinished(){
+    monitor->function_state = MONITOR_BACKUP;
+    (*functionStateMachine[monitor->function_state].func)();
+    monitor->function_state = FUNCTION_ENDED;
+    monitor->state = MONITOR_STOPPED;
+}
+
+void stMonitorStarted(){
+    monitor->function_state = CHECK_REP;
+    (*functionStateMachine[monitor->function_state].func)();
+    monitor->function_state = FUNCTION_ENDED;
+    monitor->state = MONITOR_FINISHED;
+}
+
+void stMonitorReady(){
+    monitor->function_state = CHECK_REP;
+    (*functionStateMachine[monitor->function_state].func)();
+    monitor->function_state = FUNCTION_ENDED;
+    monitor->state = MONITOR_STARTED;
+}
+
+
+void stMonitorStopped(void *task, progress_t progress){
+    monitor->monitor_rep = 0;
+    monitor->task_bck = task;
+    monitor->progress = progress;
+        
+    monitor->state = MONITOR_READY;
+}
+
+// when you are here you have 2 possibilities:
+// 1. MONITOR_STOPPED 2. MONITOR_READY
+void monitor_entry(void *task, progress_t progress){
+    if(!monitor->monitor_is_rep){
+        monitor->control_state = CONTROL_ENTRY;
+        //If I'm here I'm sure to be MONITOR_STOPPED and monitor_is_rep == FALSE
+        (*monitorStateMachine[monitor->state].func_p)(task, progress);
+        
+        while(monitor->state != MONITOR_STOPPED){
+            (*monitorStateMachine[monitor->state].func_v)();
+        }
+    } else if(monitor->state != MONITOR_STOPPED){
+        //monitor not STOPPED and is_rep == TRUE
+        while(monitor->state != MONITOR_STOPPED){
+            (*monitorStateMachine[monitor->state].func_v)();
+        }
+    } else {
+        //monitor STOPPED and is_rep == TRUE
+        monitor->monitor_is_rep = FALSE;
+    }
+
+    monitor->control_state = CONTROL_STOPPED;
 }
