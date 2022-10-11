@@ -36,7 +36,8 @@ typedef enum {
 } state_m;
 
 typedef enum {
-    CHECK_REP,
+    CHECK_REP_R,
+    CHECK_REP_S, //used only for while condition on stMonitorReady
     INIT_COUNT,
     COUNT_TASK,
     UPDATE_LTASK,
@@ -54,6 +55,7 @@ typedef struct {
     long int *transactions;
     int index;
     int _index;
+    int index_bck; //used by GET_TIME state
     int repeat_threshold;
     long int time_threshold;
     long int execution_time;

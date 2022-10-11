@@ -31,7 +31,8 @@ state_machine_m monitorStateMachine[] = {
 
 
 state_machine_f functionStateMachine[] = {
-    { CHECK_REP, checkRepetition },
+    { CHECK_REP_R, checkRepetition },
+    { CHECK_REP_S, checkRepetition },
     { INIT_COUNT, init_count },
     { COUNT_TASK, incrementCountTask },
     { UPDATE_LTASK, updateLastTask },
@@ -83,6 +84,7 @@ void boot_init_monitor(int num_st, int num_tr, void** graph, int repeat_threshol
     }
     monitor->index = 0;
     monitor->_index = 0;
+    monitor->index_bck = 0;
     monitor->repeat_threshold = repeat_threshold;
     monitor->time_threshold = time_threshold;
     monitor->execution_time = 0;
@@ -105,6 +107,7 @@ void boot_init_monitor(int num_st, int num_tr, void** graph, int repeat_threshol
 void init_count(){
     monitor->count_rep = 0;
     monitor->_count_rep = 0;
+    monitor->function_state = FUNCTION_ENDED;
 }
 
 boolean checkThresholdRep(){
@@ -117,6 +120,8 @@ void incrementCountTask(){
         monitor->monitor_error_type = ERROR_REP_T;
         monitor->state = MONITOR_ERROR;
         (*monitorStateMachine[monitor->state].func_v)();
+    } else {
+        monitor->function_state = FUNCTION_ENDED;
     }
 }
 
@@ -124,12 +129,12 @@ void incrementIndexProgression(){
     if(monitor->progress == TASKENDING){
         monitor->_index = monitor->index + 1;
     }
+    monitor->function_state = FUNCTION_ENDED;
 }
 
 void checkCorrectProgression(){
     if(monitor->task_bck == *((monitor->graph)+monitor->index)){
         monitor->function_state = COUNT_PROGRESS;
-        (*functionStateMachine[monitor->function_state].func)();
     } else {
         monitor->monitor_error_type = ERROR_PATH;
         monitor->state = MONITOR_ERROR;
@@ -144,7 +149,6 @@ void updateLastTask(){
         monitor->_last_task_e = monitor->task_bck;
     }
     monitor->function_state = CHECK_PROGRESS;
-    (*functionStateMachine[monitor->function_state].func)();
 }
 
 void checkRepetition(){
@@ -155,72 +159,76 @@ void checkRepetition(){
         res = (monitor->last_task_e == monitor->task_bck);
     }
     if(res){
-        if(monitor->state == MONITOR_STARTED){
+        if(monitor->state == MONITOR_READY){
+            monitor->function_state = FUNCTION_ENDED;
+        } else if (monitor->state == MONITOR_STARTED){
             monitor->function_state = COUNT_TASK;
-            (*functionStateMachine[monitor->function_state].func)();
         }
     } else {
         if(monitor->state == MONITOR_READY){
             monitor->function_state = INIT_COUNT;
-            (*functionStateMachine[monitor->function_state].func)();
         } else if (monitor->state == MONITOR_STARTED){
             monitor->function_state = UPDATE_LTASK;
-            (*functionStateMachine[monitor->function_state].func)();
         }
     }
 }
 
 // tmp getTime() function
 long int getTime(){
-    return (1000 * (monitor->index +1));
+    return (1000 * (monitor->index_bck +1));
 }
 
 void updateTime(){
-    if(*(monitor->transactions + monitor->index) == 0){
-        if(monitor->index == 0){
-            *(monitor->transactions + monitor->index) = getTime();
+    if(*(monitor->transactions + monitor->index_bck) == 0){
+        if(monitor->index_bck == 0){
+            *(monitor->transactions + monitor->index_bck) = getTime();
         } else {
-            *(monitor->transactions + monitor->index) = getTime()- *(monitor->transactions + (monitor->index -1));
+            *(monitor->transactions + monitor->index_bck) = getTime()- *(monitor->transactions + (monitor->index_bck -1));
         }
     }
     if(monitor->_index == monitor->num_tr && monitor->execution_time == 0){
         monitor->execution_time = getTime();
     }
-}
-
-void backupMonitor(){
-    if(monitor->progress == TASKSTARTING){
-        monitor->last_task_s = monitor->_last_task_s;
-    } else if (monitor->progress == TASKENDING){
-        monitor->function_state = GET_TIME;
-        (*functionStateMachine[monitor->function_state].func)();
-        monitor->last_task_e = monitor->_last_task_e;
-    }
-    monitor->count_rep = monitor->_count_rep;
-    monitor->index = monitor->_index;
     if(monitor->execution_time != 0){
         fprintf(stdout, "[SUCCESS][%ld] End reached!\n", monitor->execution_time);
     }
+    monitor->function_state = FUNCTION_ENDED;
+}
+
+void backupMonitor(){
+    monitor->count_rep = monitor->_count_rep;
+    monitor->index = monitor->_index;
+
+    if(monitor->progress == TASKSTARTING){
+        monitor->last_task_s = monitor->_last_task_s;
+        monitor->function_state = FUNCTION_ENDED;
+    } else if (monitor->progress == TASKENDING){
+        monitor->last_task_e = monitor->_last_task_e;
+        monitor->function_state = GET_TIME;
+    }
+    
 }
 
 void stMonitorFinished(){
-    monitor->function_state = MONITOR_BACKUP;
-    (*functionStateMachine[monitor->function_state].func)();
-    monitor->function_state = FUNCTION_ENDED;
+    while(monitor->function_state != FUNCTION_ENDED){
+        (*functionStateMachine[monitor->function_state].func)();
+    }
     monitor->state = MONITOR_STOPPED;
 }
 
 void stMonitorStarted(){
-    monitor->function_state = CHECK_REP;
-    (*functionStateMachine[monitor->function_state].func)();
-    monitor->function_state = FUNCTION_ENDED;
+    while(monitor->function_state != FUNCTION_ENDED && monitor->function_state != MONITOR_BACKUP){
+        (*functionStateMachine[monitor->function_state].func)();
+    }
+    monitor->function_state = MONITOR_BACKUP;
     monitor->state = MONITOR_FINISHED;
 }
 
 void stMonitorReady(){
-    monitor->function_state = CHECK_REP;
-    (*functionStateMachine[monitor->function_state].func)();
-    monitor->function_state = FUNCTION_ENDED;
+    while(monitor->function_state != FUNCTION_ENDED && monitor->function_state != CHECK_REP_S){
+        (*functionStateMachine[monitor->function_state].func)();
+    }
+    monitor->function_state = CHECK_REP_S;
     monitor->state = MONITOR_STARTED;
 }
 
@@ -228,8 +236,10 @@ void stMonitorReady(){
 void stMonitorStopped(void *task, progress_t progress){
     monitor->monitor_rep = 0;
     monitor->task_bck = task;
+    monitor->index_bck = monitor->index;
     monitor->progress = progress;
-        
+    
+    monitor->function_state = CHECK_REP_R;
     monitor->state = MONITOR_READY;
 }
 

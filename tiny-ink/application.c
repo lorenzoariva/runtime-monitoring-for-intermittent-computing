@@ -18,7 +18,7 @@ TASK(task3);
 // variables for testing
 int num_st_tmp = 3;
 int num_tr_tmp = 6;
-void *graph_tmp[6] = { task1, task3, task3, task1, task2, task3 };
+void *graph_tmp[6] = { task1, task2, task3, task1, task2, task3 };
 int repeat_treshold_tmp = 5;
 long int time_treshold_tmp = 100000;
 

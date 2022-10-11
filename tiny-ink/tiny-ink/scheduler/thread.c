@@ -9,11 +9,14 @@ static inline void __prologue(thread_t *thread)
     __dma_word_copy(buffer->buf[buffer->idx],buffer->buf[buffer->idx ^ 1], buffer->size>>1);
 }
 
+// used in monitor calls.
+// __nv because in TASK_FINISHED you cannot take again the previous thread->next if power failure after thread->next = thread->_next
+__nv void* currentTask;
+
 // runs one task inside the current thread
 void __tick(thread_t *thread)
 {
     void *buf;
-    void *currentTask;
     switch (thread->state)
     {
     case TASK_READY:
@@ -21,9 +24,11 @@ void __tick(thread_t *thread)
         __prologue(thread);
         // get thread buffer
         buf = thread->buffer.buf[thread->buffer._idx^1];
-
         
-        monitor_entry(thread->next, TASKSTARTING);
+        //save the currentTask before it's modification for WAR rule
+        currentTask = thread->next;
+
+        monitor_entry(currentTask, TASKSTARTING);
         
 
         // Check if it is the entry task. The entry task always
@@ -32,8 +37,6 @@ void __tick(thread_t *thread)
         thread->state = TASK_FINISHED;
 
     case TASK_FINISHED:
-        //save the current task before it's updated because is used by monitor_entry call
-        currentTask = thread->next;
 
         thread->next = thread->_next;
         //switch stack index to commit changes
