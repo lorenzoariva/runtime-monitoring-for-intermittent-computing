@@ -9,14 +9,11 @@ static inline void __prologue(thread_t *thread)
     __dma_word_copy(buffer->buf[buffer->idx],buffer->buf[buffer->idx ^ 1], buffer->size>>1);
 }
 
-// used in monitor calls.
-// __nv because in TASK_FINISHED you cannot take again the previous thread->next if power failure after thread->next = thread->_next
-__nv void* currentTask;
-
 // runs one task inside the current thread
 void __tick(thread_t *thread)
 {
     void *buf;
+    void *currentTask;
     switch (thread->state)
     {
     case TASK_READY:
@@ -24,12 +21,11 @@ void __tick(thread_t *thread)
         __prologue(thread);
         // get thread buffer
         buf = thread->buffer.buf[thread->buffer._idx^1];
-        
-        //save the currentTask before it's modification for WAR rule
-        currentTask = thread->next;
 
-        monitor_entry(currentTask, TASKSTARTING);
         
+        monitor_entry(thread->next, TASKSTARTING, thread);
+        //save the current task before it's updated because is used by monitor_entry call
+        currentTask = thread->next;
 
         // Check if it is the entry task. The entry task always
         // consumes an event in the event queue.
@@ -37,15 +33,16 @@ void __tick(thread_t *thread)
         thread->state = TASK_FINISHED;
 
     case TASK_FINISHED:
+        
+        monitor_entry(currentTask, TASKENDING, thread);
 
         thread->next = thread->_next;
         //switch stack index to commit changes
         thread->buffer._idx = thread->buffer.idx ^ 1;
 
-        monitor_entry(currentTask, TASKENDING);
-
         thread->state = TASK_COMMIT;
     case TASK_COMMIT:
+        monitor_entry(currentTask, TASKENDED, thread);
         // copy the real index from temporary index
         thread->buffer.idx = thread->buffer._idx;
         // Task execution finished. Check if the whole tasks are executed (thread finished)
