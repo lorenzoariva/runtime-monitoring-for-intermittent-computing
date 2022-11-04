@@ -15,24 +15,21 @@ ENTRY_TASK(task1);
 TASK(task2);
 TASK(task3);
 
-// variables for testing
-int num_st_tmp = 3;
+/* temporary variables for testing (emulate the user choices) */
 int num_tr_tmp = 6;
 void *graph_tmp[6] = { task1, task2, task3, task1, task2, task3 };
-int repeat_treshold_tmp = 1;
-long int time_treshold_tmp = 80000;
+long int time_threshold_tmp = 80000;
 int num_task_tmp = 3;
-int restart_threshold_tmp = 1;
 state_machine_decision decision_tmp[] = {
-    {task1, SKIP, 2, 10000},
-    {task2, RESTART, 0, 50000},
-    {task3, EXIT, 3, 10000}
+    {task1, EXIT, 2, 10000, 2, 0},
+    {task2, RESTART, 0, 50000, 1, 1},
+    {task3, EXIT, 3, 10000, 1, 0}
 };
 
 // called at the first boot (just one time)
 void _ink_init(){
-    // init the monitor (only first boot)
-    boot_init_monitor(num_st_tmp, num_tr_tmp, graph_tmp, repeat_treshold_tmp, time_treshold_tmp, num_task_tmp, decision_tmp, restart_threshold_tmp);
+    /* init the monitor (only first boot) */
+    boot_init_monitor(num_tr_tmp, graph_tmp, time_threshold_tmp, num_task_tmp, decision_tmp);
     // create a thread with priority 15 and entry task task1
     __CREATE(THREAD1,task1);
     __SIGNAL(THREAD1);

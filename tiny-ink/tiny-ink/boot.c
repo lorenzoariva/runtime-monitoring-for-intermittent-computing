@@ -35,7 +35,7 @@ int ink_boot(void)
 
     // if this is the first boot
     if(!__inited){
-        //boot_init_monitor moved to application.c to take tasks addresses values
+        /* boot_init_monitor moved to application.c to take tasks addresses values */
 
         // init the scheduler state
         __scheduler_boot_init();
@@ -45,7 +45,7 @@ int ink_boot(void)
         __inited = 1;
     }
 
-    // called at each reboot. First monitor finishes its operations.
+    /* called at each reboot. First monitor finishes its operations. */
     reboot_monitor();
     // will be called at each reboot of the application
     _ink_reboot();

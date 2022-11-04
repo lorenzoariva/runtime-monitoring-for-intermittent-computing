@@ -9,11 +9,13 @@ static inline void __prologue(thread_t *thread)
     __dma_word_copy(buffer->buf[buffer->idx],buffer->buf[buffer->idx ^ 1], buffer->size>>1);
 }
 
+/* keep track of the last new task before changes */
+__nv void* currentTask;
+
 // runs one task inside the current thread
 void __tick(thread_t *thread)
 {
     void *buf;
-    void *currentTask;
     switch (thread->state)
     {
     case TASK_READY:
@@ -24,7 +26,7 @@ void __tick(thread_t *thread)
 
         
         monitor_entry(thread->next, TASKSTARTING, thread);
-        //save the current task before it's updated because is used by monitor_entry call
+        /* save the current task before it's updated because is used by monitor_entry call */
         currentTask = thread->next;
 
         // Check if it is the entry task. The entry task always
