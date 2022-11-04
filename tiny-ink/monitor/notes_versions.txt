@@ -1,0 +1,19 @@
+MONITOR VERSIONS NOTES
+
+monitor-v4:
+- Main states from 4 to 3 (READY state eliminated)
+- 4 different kind of errors: monitor rep, task rep, path error, time exceeded.
+- 3 different decision based on the error and the task: SKIP, RESTART, EXIT.
+- in RESTART, the restart point can be decided.
+- User can decide all the threshold and what happen in case of error. User can't change error and threshold based only on monitor things.
+
+- restart limit on the task and not on the transitions.
+
+- in thread.c now three calls to the monitor, once for every thread.c state. This because it's more correct to calculate the time once the task is really finished. If we consider the task finishes when the THREAD_FINISHED state is entirely executed, we need a different thread state to calculate the time.
+
+monitor-v5:
+- Main states are now really 3 + error state (MONITOR_STOPPED,MONITOR_STARTED,MONITOR_FINISHED,MONITOR_ERROR) = eliminated unnecessary MONITOR_TIME state.
+- Now also in case of progress == TASKENDED you'll pass through all the 3 states of the monitor for correctness of the monitor logic and you won't stop in the MONITOR_STARTED state.
+- In progress==TASKENDED in MONITOR_FINISHED state last_task pointers are set to NULL in case the next task in the graph is the same of the current one. Without this the next task would be seen as a repetition and not as a "new one".
+- More flexibility to the user: now the user can also set different repetition and restart thresholds for each different task.
+- Code commented

@@ -44,7 +44,6 @@ state_machine_f functionStateMachine[] = {
     { MONITOR_TIME, timeFunctionSt }
 };
 
-//monitor v4 ----------------------------
 /**
  * @brief error functions state machine for the functions executed in case of errors.
  * See monitor.h for the struct definition.
@@ -246,8 +245,6 @@ void errorStoppedSt(){
 
 }
 
-//------------------------------ monitor v4
-
 /**
  * @brief main monitor error state.
  * Will call the different function state based on the error.
@@ -342,8 +339,6 @@ void boot_init_monitor(int num_tr, void** graph, long int time_threshold, int nu
     monitor->function_state = FUNCTION_ENDED;
     monitor->monitor_error_type = NO_ERROR;
     monitor->control_state = CONTROL_STOPPED;
-
-    //monitor v4
     monitor->num_task = num_task;
     monitor->decision = (state_machine_decision*) malloc (num_task * sizeof(state_machine_decision));
     monitor->restart = (int*) malloc (num_task * sizeof(int));

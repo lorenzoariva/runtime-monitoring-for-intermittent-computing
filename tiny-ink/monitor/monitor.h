@@ -78,7 +78,6 @@ typedef struct
     void (*func)(void);
 } state_machine_f;
 
-// monitor v4 -----------------------------------------------
 /**
  * @brief Used by error state machine.
  * 1. Error type.
@@ -121,7 +120,6 @@ typedef struct
     error_decision decision;
     void (*func)(void);
 } decisionToFunc;
-//------------------------------ monitor v4
 
 /**
  * @brief Main structure of the monitor.
@@ -149,8 +147,6 @@ typedef struct {
     volatile state_f function_state;        /* current/last function state during the monitor execution */
     volatile error_type monitor_error_type; /* type of error in case of error */
     volatile state_c control_state;         /* where the control of the monitor started */
-
-    //monitor v4
     int num_task;                           /* number of different tasks in the graph */
     state_machine_decision* decision;       /* structure with errors decisions and thresholds for each different task in the graph */
     int* restart;                           /* keep the restarts count for each different task in the graph */
@@ -164,7 +160,6 @@ typedef struct {
 
 // FUNCTIONS --------------------------------------------------------------
 
-//monitor v4
 int take_nextI();
 void errorStBCK();
 void errorRestartStBCK();
@@ -173,10 +168,7 @@ void errorSkipSt();
 void errorExitSt();
 void findCurrI();
 void errorStoppedSt();
-
-//tmp getTime function
 long int getTime();
-
 void stMonitorError();
 boolean checkMonitorThresholdRep();
 void reboot_monitor();
