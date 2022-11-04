@@ -403,11 +403,16 @@ void incrementIndexProgression(){
 
 /**
  * @brief check the correctness of the current task based on the path saved in the monitor.
+ * If progress==TASKENDING check if the currentTask that is ending is equal to the last one that started (to avoid unfinished tasks for some errors).
  * In case of success the index pointing to the path is updated (COUNT_PROGRESS function state).
  * In case of an unrecognized task, operations are stopped (FUNCION_ENDED) to call the MONITOR_ERROR state.
  */
 void checkCorrectProgression(){
-    if(monitor->current_task == *((monitor->graph)+monitor->index)){
+    boolean checkEndCorrectness = TRUE;
+    if(monitor->progress == TASKENDING && (monitor->_last_task_e != monitor->last_task_s)){
+        checkEndCorrectness = FALSE;
+    }
+    if(monitor->current_task == *((monitor->graph)+monitor->index) && checkEndCorrectness){
         monitor->function_state = COUNT_PROGRESS;
     } else {
         monitor->monitor_error_type = ERROR_PATH;
