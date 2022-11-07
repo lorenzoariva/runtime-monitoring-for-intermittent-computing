@@ -212,8 +212,8 @@ void findCurrI(){
         }
     }
     if(!find){
-        //printf("[INVALID_TASK] The task was not found in the decision struct!\n");
-        //fflush(stdout);
+        fprintf(stdout,"[INVALID_TASK] The task was not found in the decision struct!\n");
+        fflush(stdout);
         exit(30);
     }
 }
