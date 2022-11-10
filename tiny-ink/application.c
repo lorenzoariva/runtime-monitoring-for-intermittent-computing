@@ -21,9 +21,9 @@ void *graph_tmp[6] = { task1, task2, task3, task1, task2, task3 };
 long int time_threshold_tmp = 80000;
 int num_task_tmp = 3;
 state_machine_decision decision_tmp[] = {
-    {task1, EXIT, 2, 10000, 2, 0},
+    {task1, SKIP, 2, 10000, 2, 0},
     {task2, RESTART, 0, 50000, 1, 1},
-    {task3, EXIT, 3, 10000, 1, 0}
+    {task3, EXIT, 3, 10000, 3, 0}
 };
 
 // called at the first boot (just one time)

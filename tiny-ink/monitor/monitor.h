@@ -127,7 +127,7 @@ typedef struct
  */
 typedef struct {       
     volatile state_m state;                 /* current/last monitor state */
-    int num_tr;                              /* number of transitions in the graph */
+    int num_tr;                             /* number of transitions in the graph */
     void** graph;                           /* graph of the application */
     long int *transactions;                 /* structure containing the esecution time of the tasks */
     int index;                              /* index to the current point in the graph */

@@ -134,6 +134,7 @@ void errorRestartStBCK(){
 /**
  * @brief RESTART error function state.
  * Called if the decision for the error is RESTART.
+ * Check if the next index is lower than the current index, necessary for the RESTART logic.
  * Check if the restart threshold for the current task is respected.
  * If the threshold is respected:
  *  - prints the decision, the current index, the current task, the next index and the next task.
@@ -143,7 +144,11 @@ void errorRestartStBCK(){
  */
 void errorRestartSt(){
     int error_nextI = take_nextI();
-    
+    if(error_nextI >= monitor->index_tmp){
+        fprintf(stdout, "[ERROR NEXT INDEX RESTART][%p] The next index for RESTART decision is greater or equal to the current index! [%d]>=[%d]\n", monitor->current_task, error_nextI, monitor->index_tmp);
+        fflush(stdout);
+        exit(70);
+    }
     void* error_nextT = *(monitor->graph + error_nextI);
 
     if(*(monitor->restart + monitor->taskIndex) < ((monitor->decision + monitor->taskIndex)->restart_threshold)){
@@ -163,13 +168,18 @@ void errorRestartSt(){
 /**
  * @brief SKIP error function state.
  * Called if the decision for the error is SKIP.
+ * Check if the next index is greater than the current index, necessary for the SKIP logic.
  * Prints the decision, the current index, the current task, the next index and the next task.
  * Updates the index in the monitor.
  * Finishes the backup of the variables in ERROR_BCK error funtion state.
  */
 void errorSkipSt(){
     int error_nextI = take_nextI();
-
+    if(error_nextI <= monitor->index_tmp){
+        fprintf(stdout, "[ERROR NEXT INDEX SKIP][%p] The next index for SKIP decision is lower or equal to the current index! [%d]<=[%d]\n", monitor->current_task, error_nextI, monitor->index_tmp);
+        fflush(stdout);
+        exit(60);
+    }
     void* error_nextT = *(monitor->graph + error_nextI);
 
     fprintf(stdout, "[SKIP][%d]%p ==> [%d]%p\n", monitor->index_tmp, monitor->current_task, error_nextI, error_nextT);
@@ -224,7 +234,18 @@ void findCurrI(){
  * If there are ERROR_PATH or ERROR_REP_M errors, the decision will be taken from the errorStateMachine struct (strict of the monitor).
  * If there are ERROR_REP_T or ERROR_TIME_T errors, the decision will be taken from the decision struct, saved into the monitor, but decided by the user.
  * If there are other kind of errors (not allowed), the application will be stop with an exit call.
- * For the next operations a temporary value of the index is saved based on the progress variable value.
+ * For the next operation a temporary index value is saved (index_tmp).
+ * The calculation of index_tmp depends on when the MONITOR_ERROR status was called:
+ *  1.  if progress == TASKSTARTING surely index refers to the current task, so index_tmp = index.
+ *  2.  if progress == TASKENDED surely both index and _index refer to the next task so index_tmp = index - 1.
+ *  3.  if progress == TASKENDING and monitor_error_type == ERROR_PATH surely there isn't a task repetition and backupMonitor has not yet been executed,
+ *      so index refers to the current task and index_tmp = index.
+ *  4.  if progress == TASKENDING and monitor_error_type == ERROR_REP_T the monitor has been executed entirely at least once and surely both index and _index
+ *      refer to the next task, so index_tmp = index - 1.
+ *  5.  if progress == TASKENDING and monitor_error_type == ERROR_REP_M and last_task_e == _last_task_e surely sub-state MONITOR_BACKUP has been reached and surely
+ *      _index refer to the next task, so index_tmp = _index - 1.
+ *  6.  if progress == TASKENDING and monitor_error_type == ERROR_REP_M and last_task_e != _last_task_e surely monitor->index = monitor->_index operation in
+ *      backupMonitor function has been never executed and index refers to the current task, so index_tmp = index.
  */
 void errorStoppedSt(){
     
@@ -238,9 +259,20 @@ void errorStoppedSt(){
         exit(20);
     }
 
-    monitor->index_tmp = monitor->index;
-    if(monitor->progress == TASKENDING || monitor->progress == TASKENDED){
-        monitor->index_tmp = monitor->index_tmp - 1;
+    if(monitor->progress == TASKSTARTING){
+        monitor->index_tmp = monitor->index;
+    } else if(monitor->progress == TASKENDED){
+        monitor->index_tmp = monitor->index - 1;
+    } else {
+        if(monitor->monitor_error_type == ERROR_PATH){
+            monitor->index_tmp = monitor->index;
+        } else if(monitor->monitor_error_type == ERROR_REP_T){
+            monitor->index_tmp = monitor->index - 1;
+        } else if(monitor->monitor_error_type == ERROR_REP_M && monitor->last_task_e == monitor->_last_task_e){
+            monitor->index_tmp = monitor->_index - 1;
+        } else if(monitor->monitor_error_type == ERROR_REP_M && monitor->last_task_e != monitor->_last_task_e){
+            monitor->index_tmp = monitor->index;
+        }
     }
 
 }
@@ -581,8 +613,12 @@ void stMonitorStopped(void *task, progress_t progress, thread_t *thread){
 
     if(progress == TASKENDED){
         monitor->function_state = MONITOR_TIME;
-    } else {
+    } else if(progress == TASKSTARTING || progress == TASKENDING){
         monitor->function_state = CHECK_REP;
+    } else {
+        fprintf(stdout, "[INVALID PROGRESS] The thread state used in monitor_entry function call is incorrect!\n");
+        fflush(stdout);
+        exit(50);
     }
     monitor->state = MONITOR_STARTED;
 }
