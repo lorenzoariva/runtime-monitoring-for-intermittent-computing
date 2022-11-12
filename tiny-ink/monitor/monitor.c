@@ -238,9 +238,9 @@ void findCurrI(){
  * The calculation of index_tmp depends on when the MONITOR_ERROR status was called:
  *  1.  if progress == TASKSTARTING surely index refers to the current task, so index_tmp = index.
  *  2.  if progress == TASKENDED surely both index and _index refer to the next task so index_tmp = index - 1.
- *  3.  if progress == TASKENDING and last_task_e == _last_task_e surely sub-state MONITOR_BACKUP has been reached and surely
+ *  3.  if progress == TASKENDING and last_task_e != NULL surely sub-state MONITOR_BACKUP has been reached and surely
  *      _index refer to the next task, so index_tmp = _index - 1.
- *  4.  if progress == TASKENDING and last_task_e != _last_task_e surely monitor->index = monitor->_index operation in
+ *  4.  if progress == TASKENDING and last_task_e == NULL surely monitor->index = monitor->_index operation in
  *      backupMonitor function has been never executed and index refers to the current task, so index_tmp = index.
  */
 void errorStoppedSt(){
@@ -259,9 +259,9 @@ void errorStoppedSt(){
         monitor->index_tmp = monitor->index;
     } else if(monitor->progress == TASKENDED){
         monitor->index_tmp = monitor->index - 1;
-    } else if(monitor->last_task_e == monitor->_last_task_e){
+    } else if(monitor->last_task_e != NULL){
         monitor->index_tmp = monitor->_index - 1;
-    } else if(monitor->last_task_e != monitor->_last_task_e){
+    } else if(monitor->last_task_e == NULL){
         monitor->index_tmp = monitor->index;
     }
 
