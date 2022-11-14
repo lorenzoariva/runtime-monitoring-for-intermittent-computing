@@ -4,7 +4,7 @@
 #include "../tiny-ink/ink.h"
 
 /* monitor repetition threshold is strict definied into the monitor */
-#define MONITOR_REP_THRESHOLD 3
+#define MONITOR_REP_THRESHOLD 2
 #define MAXERROR 4
 
 typedef enum { FALSE = 0, TRUE = 1 } boolean;
