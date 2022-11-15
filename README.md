@@ -1,1 +1,1 @@
-# tiny-system-thesis
+# Runtime Monitoring for Intermittent Computing
